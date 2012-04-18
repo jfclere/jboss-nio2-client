@@ -57,9 +57,9 @@ public class LogParser {
         String tab[];
         int counter = 0;
 
-        LinkedList<Integer> max_times = new LinkedList<>();
-        LinkedList<Integer> min_times = new LinkedList<>();
-        LinkedList<Double> avg_times = new LinkedList<>();
+        LinkedList<Integer> max_times = new LinkedList<Integer>();
+        LinkedList<Integer> min_times = new LinkedList<Integer>();
+        LinkedList<Double> avg_times = new LinkedList<Double>();
 
         while ((line = br.readLine()) != null) {
             if (line.matches("\\s*")) {
