@@ -64,6 +64,7 @@ public class JioClient extends Thread {
     private URL url;
     private BufferedReader reader;
     private OutputStream os;
+    private String jsessionid = null;
 
     /**
      * Create a new instance of {@code JioClient}
@@ -201,7 +202,12 @@ public class JioClient extends Thread {
      * @throws Exception
      */
     private void sendRequest() throws IOException {
-        this.os.write(("GET " + this.url.getPath() + " HTTP/1.1\n").getBytes());
+    	if (jsessionid != null) {
+    		// System.out.println("jsessionid: *" + jsessionid + "*");
+    		this.os.write(("GET " + this.url.getPath() + ";jsessionid=" + jsessionid + " HTTP/1.1\n").getBytes());
+    	} else {
+    		this.os.write(("GET " + this.url.getPath() + " HTTP/1.1\n").getBytes());
+    	}
         this.os.write(("User-Agent: " + JioClient.class.getName() + "\n").getBytes());
         this.os.write(("Host: " + this.url.getHost() + "\n").getBytes());
         this.os.write("Connection: keep-alive\n".getBytes());
@@ -217,22 +223,40 @@ public class JioClient extends Thread {
     public String readResponse() throws IOException {
         long contentLength = 0;
         String line;
-        while ((line = this.reader.readLine()) != null && !line.trim().equals("")) {
-            //System.out.println(line);
+        line = this.reader.readLine();
+        if (line == null)
+        	throw new IOException("readLine failed nothing");
+        
+        // skip CRLF
+        while (line != null && line.trim().equals(""))
+        	line = this.reader.readLine();
+        
+        while (line != null && !line.trim().equals("")) {
+            // System.out.println("header: " + line);
             String tab[] = line.split("\\s*:\\s*");
             if (tab[0].equalsIgnoreCase("Content-length")) {
                 contentLength = Long.parseLong(tab[1]);
             }
+            if (tab[0].equalsIgnoreCase("Set-Cookie")) {
+            	String sess[] = tab[1].split("\\s*=\\s*");
+            	// System.out.println(sess[0] + " : " + sess[1]);
+            	jsessionid = sess[1].substring(0, sess[1].indexOf(';'));
+            }
+            line = this.reader.readLine();
         }
+        if (line == null)
+        	throw new IOException("readLine failed");
 
         //System.out.println("");
         long read = 0;
+        char[] buff = new char[(int) contentLength];
 
-        while (read < contentLength && (line = this.reader.readLine()) != null) {
-            read += line.length() + 1;
-            //System.out.println(line);
+        while (read < contentLength) {
+        	int i = this.reader.read(buff);
+        	read += i;
+            System.out.println("READ: " + read + " : " + contentLength);
         }
-        //System.out.println("\n\n**************************************************\n\n");
+        // System.out.println("\n\n**************************************************\n\n");
         return "Hello world!";
     }
 
@@ -272,7 +296,7 @@ public class JioClient extends Thread {
         System.out.println("\nRunning test with parameters:");
         System.out.println("\tURL: " + strURL);
         System.out.println("\tn: " + NB_CLIENTS);
-        System.out.println("\tdelay: " + delay);
+        System.out.println("\tdelay: " + delay + " ms");
 
         JioClient clients[] = new JioClient[NB_CLIENTS];
 
