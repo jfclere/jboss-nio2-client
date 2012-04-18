@@ -254,7 +254,7 @@ public class JioClient extends Thread {
         while (read < contentLength) {
         	int i = this.reader.read(buff);
         	read += i;
-            System.out.println("READ: " + read + " : " + contentLength);
+            // System.out.println("READ: " + read + " : " + contentLength);
         }
         // System.out.println("\n\n**************************************************\n\n");
         return "Hello world!";
