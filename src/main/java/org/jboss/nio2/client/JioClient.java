@@ -66,16 +66,6 @@ public class JioClient extends Thread {
     private OutputStream os;
     private String jsessionid = null;
 
-    /**
-     * Create a new instance of {@code JioClient}
-     *
-     * @param d_max
-     * @param delay
-     */
-    public JioClient(int d_max, int delay) {
-        this.max = d_max;
-        this.delay = delay;
-    }
 
     /**
      * Create a new instance of {@code JioClient}
@@ -85,28 +75,9 @@ public class JioClient extends Thread {
      * @param delay
      */
     public JioClient(URL url, int d_max, int delay) {
-        this(d_max, delay);
+    	this.max = d_max;
+    	this.delay = delay;
         this.url = url;
-    }
-
-    /**
-     * Create a new instance of {@code JioClient}
-     *
-     * @param url
-     * @param delay
-     */
-    public JioClient(URL url, int delay) {
-        this(delay);
-        this.url = url;
-    }
-
-    /**
-     * Create a new instance of {@code JioClient}
-     *
-     * @param delay
-     */
-    public JioClient(int delay) {
-        this(60 * 1000 / delay, delay);
     }
 
     @Override
@@ -171,6 +142,9 @@ public class JioClient extends Thread {
                 sendRequest();
                 response = readResponse();
                 time = System.currentTimeMillis() - time;
+                // This is one of the mod_cluster perf tests.
+                if (Integer.parseInt(response) != counter)
+                	System.out.println("[" + getId() + "] Error: " + Integer.parseInt(response) + " != " + counter);
             } catch (IOException exp) {
                 System.out.println("[" + getId() + "] Exception:" + exp.getMessage());
                 break;
@@ -246,6 +220,8 @@ public class JioClient extends Thread {
         }
         if (line == null)
         	throw new IOException("readLine failed");
+        if (contentLength==0)
+        	throw new IOException("contentLength==0");
 
         //System.out.println("");
         long read = 0;
@@ -257,7 +233,7 @@ public class JioClient extends Thread {
             // System.out.println("READ: " + read + " : " + contentLength);
         }
         // System.out.println("\n\n**************************************************\n\n");
-        return "Hello world!";
+        return new String(buff);
     }
 
     /**
@@ -268,15 +244,17 @@ public class JioClient extends Thread {
     public static void main(String[] args) throws Exception {
 
         if (args.length < 1) {
-            System.err.println("Usage: java " + TestClient.class.getName() + " URL [n] [delay]");
+            System.err.println("Usage: java " + TestClient.class.getName() + " URL [n] [delay] [nreqs]");
             System.err.println("\tURL: The url of the service to test.");
             System.err.println("\tn: The number of clients. (default is " + NB_CLIENTS + ")");
             System.err.println("\tdelay: The delay between writes. (default is " + DEFAULT_DELAY + "ms)");
+            System.err.println("\tnreqs: Number of request/response to run");
             System.exit(1);
         }
 
         URL strURL = new URL(args[0]);
         int delay = DEFAULT_DELAY;
+        int max = 60 * 1000 / delay;
 
         if (args.length > 1) {
             try {
@@ -285,6 +263,13 @@ public class JioClient extends Thread {
                     delay = Integer.parseInt(args[2]);
                     if (delay < 1) {
                         throw new IllegalArgumentException("Negative number: delay");
+                    }
+                    max = 60 * 1000 / delay;
+                }
+                if (args.length > 3) {
+                    max = Integer.parseInt(args[3]);
+                    if (max < 1) {
+                        throw new IllegalArgumentException("Negative number: max");
                     }
                 }
             } catch (Exception exp) {
@@ -297,11 +282,12 @@ public class JioClient extends Thread {
         System.out.println("\tURL: " + strURL);
         System.out.println("\tn: " + NB_CLIENTS);
         System.out.println("\tdelay: " + delay + " ms");
+        System.out.println("\tmax request: " + max);
 
         JioClient clients[] = new JioClient[NB_CLIENTS];
 
         for (int i = 0; i < clients.length; i++) {
-            clients[i] = new JioClient(strURL, delay);
+            clients[i] = new JioClient(strURL, max, delay);
         }
 
         for (int i = 0; i < clients.length; i++) {

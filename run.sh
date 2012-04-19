@@ -32,15 +32,17 @@
 url=$1;
 n=$2;
 delay=$3;
+nreqs=$4;
 log_file=$(date +%s)-log.txt
 filename=$n-$delay-$log_file
 printf "Running clients with:\n";
 printf "\tURL: $url\n";
 printf "\tNumber of clients: $n\n";
 printf "\tDelay: $delay\n";
+printf "\tNRequests: $nreqs\n";
 printf "\n\t->Log file: $filename\n";
 
-mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.JioClient" -Dexec.args="$url $n $delay" > $log_file
+mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.JioClient" -Dexec.args="$url $n $delay $nreqs" > $log_file
 
 printf "max \t min \t avg\n" > $filename
 cat $log_file | egrep -v '[a-zA-Z]|^\s*$' >> $filename
