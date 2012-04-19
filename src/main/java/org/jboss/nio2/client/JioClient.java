@@ -135,6 +135,10 @@ public class JioClient extends Thread {
         int counter = 0;
         int min_count = 10 * 1000 / delay;
         int max_count = 50 * 1000 / delay;
+        if (min_count>this.max) {
+        	min_count = 0;
+        	max_count = max;
+        }
         while ((this.max--) > 0) {
             Thread.sleep(this.delay);
             try {
@@ -142,11 +146,16 @@ public class JioClient extends Thread {
                 sendRequest();
                 response = readResponse();
                 time = System.currentTimeMillis() - time;
+                // System.out.println("Response: " + response + " in " + time);
                 // This is one of the mod_cluster perf tests.
-                if (Integer.parseInt(response) != counter)
+                if (Integer.parseInt(response) != counter) {
                 	System.out.println("[" + getId() + "] Error: " + Integer.parseInt(response) + " != " + counter);
+                	System.out.flush();
+                	break;
+                }
             } catch (IOException exp) {
                 System.out.println("[" + getId() + "] Exception:" + exp.getMessage());
+                System.out.flush();
                 break;
             }
 
@@ -207,14 +216,25 @@ public class JioClient extends Thread {
         
         while (line != null && !line.trim().equals("")) {
             // System.out.println("header: " + line);
-            String tab[] = line.split("\\s*:\\s*");
-            if (tab[0].equalsIgnoreCase("Content-length")) {
-                contentLength = Long.parseLong(tab[1]);
+        	int i = line.indexOf(": ");
+        	if (i==-1) {
+        		line = this.reader.readLine();
+        		continue; // HTTP/1.1 :D
+        	}
+        	String header = line.substring(0, i);
+        	String value = line.substring(i+2);
+        	// System.out.println("header: " + header + " : " + value);
+            if (header.equalsIgnoreCase("Content-length")) {
+                contentLength = Long.parseLong(value);
             }
-            if (tab[0].equalsIgnoreCase("Set-Cookie")) {
-            	String sess[] = tab[1].split("\\s*=\\s*");
-            	// System.out.println(sess[0] + " : " + sess[1]);
-            	jsessionid = sess[1].substring(0, sess[1].indexOf(';'));
+            if (header.equalsIgnoreCase("Set-Cookie")) {
+            	int j = value.indexOf("=");
+            	i = value.indexOf(";");
+            	if (i==-1)
+            		jsessionid = value.substring(j+1);
+            	else
+            		jsessionid = value.substring(j+1, i);
+            	// System.out.println("JSESSIONID: " + jsessionid);
             }
             line = this.reader.readLine();
         }
@@ -223,7 +243,7 @@ public class JioClient extends Thread {
         if (contentLength==0)
         	throw new IOException("contentLength==0");
 
-        //System.out.println("");
+        // System.out.println("reading " + contentLength + " chars");
         long read = 0;
         char[] buff = new char[(int) contentLength];
 
