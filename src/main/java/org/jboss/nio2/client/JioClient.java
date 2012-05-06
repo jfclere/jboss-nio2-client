@@ -65,6 +65,7 @@ public class JioClient extends Thread {
     private BufferedReader reader;
     private OutputStream os;
     private String jsessionid = null;
+    private boolean close = true;
 
 
     /**
@@ -119,6 +120,7 @@ public class JioClient extends Thread {
         this.reader = new BufferedReader(new InputStreamReader(this.channel.getInputStream()));
         System.out.println("Connection to server established ...");
         connections.incrementAndGet();
+        this.close = false;
     }
 
     /**
@@ -142,10 +144,16 @@ public class JioClient extends Thread {
         while ((this.max--) > 0) {
             Thread.sleep(this.delay);
             try {
+                if (close)
+                  connect();
                 time = System.currentTimeMillis();
                 sendRequest();
                 response = readResponse();
                 time = System.currentTimeMillis() - time;
+                if (close) {
+                   channel.close();
+                   connections.decrementAndGet();
+                }
                 // System.out.println("Response: " + response + " in " + time);
                 // This is one of the mod_cluster perf tests.
                 if (Integer.parseInt(response) != counter) {
@@ -235,6 +243,9 @@ public class JioClient extends Thread {
             	else
             		jsessionid = value.substring(j+1, i);
             	// System.out.println("JSESSIONID: " + jsessionid);
+            }
+            if (header.equalsIgnoreCase("Connection") && value.equalsIgnoreCase("close")) {
+                close = true;
             }
             line = this.reader.readLine();
         }
