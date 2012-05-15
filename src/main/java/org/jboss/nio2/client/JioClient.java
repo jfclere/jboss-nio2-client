@@ -66,6 +66,7 @@ public class JioClient extends Thread {
     private OutputStream os;
     private String jsessionid = null;
     private boolean close = true;
+    private boolean usecookies = Boolean.valueOf(System.getProperty("USECOOKIES", "true")).booleanValue();
 
 
     /**
@@ -112,9 +113,12 @@ public class JioClient extends Thread {
      */
     protected void connect() throws Exception {
         // Open connection with server
+    	int port = this.url.getPort();
         Thread.sleep(new Random().nextInt(5 * NB_CLIENTS));
-        System.out.println("Connecting to server on " + this.url.getHost() + ":" + this.url.getPort());
-        this.channel = new Socket(this.url.getHost(), this.url.getPort());
+        if (port == -1)
+        	port = 80;
+        System.out.println("Connecting to server on " + this.url.getHost() + ":" + port);
+        this.channel = new Socket(this.url.getHost(), port);
         this.channel.setSoTimeout(10000);
         this.os = this.channel.getOutputStream();
         this.reader = new BufferedReader(new InputStreamReader(this.channel.getInputStream()));
@@ -193,7 +197,7 @@ public class JioClient extends Thread {
      * @throws Exception
      */
     private void sendRequest() throws IOException {
-    	if (jsessionid != null) {
+    	if (jsessionid != null && !usecookies) {
     		// System.out.println("jsessionid: *" + jsessionid + "*");
     		this.os.write(("GET " + this.url.getPath() + ";jsessionid=" + jsessionid + " HTTP/1.1\n").getBytes());
     	} else {
@@ -202,6 +206,9 @@ public class JioClient extends Thread {
         this.os.write(("User-Agent: " + JioClient.class.getName() + "\n").getBytes());
         this.os.write(("Host: " + this.url.getHost() + "\n").getBytes());
         this.os.write("Connection: keep-alive\n".getBytes());
+        if (jsessionid != null && usecookies) {
+        	this.os.write(("Cookie: JSESSIONID=" + jsessionid + "\n").getBytes());
+        }
         this.os.write(CRLF.getBytes());
         this.os.flush();
     }
