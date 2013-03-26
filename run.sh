@@ -22,7 +22,7 @@
 # site: http://www.fsf.org.
 
 
-# File: run_async.sh
+# File: run.sh
 #
 # Created on Nov 1, 2011 at 10:30:28 AM 
 #
@@ -32,20 +32,48 @@
 url=$1;
 n=$2;
 delay=$3;
-nreqs=$4;
+nReq=$4;
+nClients=$5;
+
+if [ "x$url" = "x" ]; then
+	echo "ERROR: The have to provide a URL";
+	exit -1;
+fi
+
+if [ "x$n" = "x" ]; then
+	n=1000;
+fi
+
+if [ "x$delay" = "x" ]; then
+	delay=1000;
+fi
+
+if [ "x$nReq" = "x" ]; then
+	nReq=1000000;
+fi
+
+if [ "x$nClients" = "x" ]; then
+	nClients=$n;
+fi
+
 log_file=$(date +%s)-log.txt
 filename=$n-$delay-$log_file
 printf "Running clients with:\n";
+echo "";
 printf "\tURL: $url\n";
 printf "\tNumber of clients: $n\n";
 printf "\tDelay: $delay\n";
-printf "\tNRequests: $nreqs\n";
-printf "\n\t->Log file: $filename\n";
+printf "\tTotal number of requests: $nReq\n";
+printf "\tTotal number of clients: $nClients\n";
 
-mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.JioClient" -Dexec.args="$url $n $delay $nreqs" > $log_file
+printf "\n\t-> Log file: $filename\n";
 
-printf "max \t min \t avg\n" > $filename
-cat $log_file | egrep -v '[a-zA-Z]|^\s*$' >> $filename
+mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.JioClient" -Dexec.args="$url $n $delay $nReq $nClients" > $log_file
 
-mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.LogParser" -Dexec.args="$filename"
+#printf "max \t min \t avg\n" > $filename
+#cat $log_file | egrep -v '[a-zA-Z]|^\s*$' >> $filename
+cat $log_file | egrep -v '[a-zA-Z]|^\s*$' >> ~/$n-$delay-$nReq-$nClients-log.txt
+
+
+#mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.LogParser" -Dexec.args="$filename $nReq"
 
