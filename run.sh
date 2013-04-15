@@ -72,7 +72,8 @@ mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.JioClient" -Dexec.args="$u
 
 #printf "max \t min \t avg\n" > $filename
 #cat $log_file | egrep -v '[a-zA-Z]|^\s*$' >> $filename
-cat $log_file | egrep -v '[a-zA-Z]|^\s*$' >> ~/$n-$delay-$nReq-$nClients-log.txt
+#cat $log_file | egrep -v '[a-zA-Z]|^\s*$' >> ~/$n-$delay-$nReq-$nClients-log.txt
+cat $log_file | grep ^WRITE >> ~/$n-$delay-$nReq-$nClients-log.txt
 
 
 #mvn exec:java -Dexec.mainClass="org.jboss.nio2.client.LogParser" -Dexec.args="$filename $nReq"

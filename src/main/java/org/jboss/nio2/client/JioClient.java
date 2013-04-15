@@ -89,6 +89,8 @@ public class JioClient extends Thread {
 	private byte[] requestBytes;
 	private List<Long> times = new ArrayList<Long>();
 
+        static long startTime = System.nanoTime();
+
 	/**
 	 * Create a new instance of {@code JioClient}
 	 * 
@@ -205,15 +207,20 @@ public class JioClient extends Thread {
 		String response = null;
 		// int counter = 0, min_count = 10 * 1000 / delay;
 		// int max_count = 50 * 1000 / delay;
-
+	        long timeWrite;
+                long timeRead;
 		while ((this.max--) > 0) {
 			Thread.sleep(this.delay);
 			try {
-				time = System.currentTimeMillis();
+				// time = System.currentTimeMillis();
+				timeWrite = System.nanoTime();
 				sendRequest();
 				response = readResponse();
-				time = System.currentTimeMillis() - time;
-				times.add(time);
+				// time = System.currentTimeMillis() - time;
+				timeRead =  System.nanoTime();
+                                System.out.println("WRITE " + (timeWrite - startTime) + " READ " + (timeRead - startTime));
+				//times.add(time);
+				times.add(timeRead - timeWrite);
 			} catch (IOException exp) {
 				System.out.println("[" + getId() + "] Exception:" + exp.getMessage());
 				exp.printStackTrace();
