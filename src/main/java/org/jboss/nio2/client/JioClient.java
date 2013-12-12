@@ -88,8 +88,20 @@ public class JioClient extends Thread {
 	private OutputStream os;
 	private byte[] requestBytes;
 	private List<Long> times = new ArrayList<Long>();
+	private List<ReadWrite> timesReadWrite = new ArrayList<ReadWrite>();
 
         static long startTime = System.nanoTime();
+
+        public class ReadWrite {
+           private Long Read;
+           private Long Write;
+
+           public ReadWrite(Long read, Long write) {
+               Read = read;
+               Write = write;
+           }
+        };
+        
 
 	/**
 	 * Create a new instance of {@code JioClient}
@@ -162,7 +174,7 @@ public class JioClient extends Thread {
 		this.channel.setSoTimeout(100000);
 		this.os = this.channel.getOutputStream();
 		this.reader = new BufferedReader(new InputStreamReader(this.channel.getInputStream()));
-		System.out.println("Connection to server established ...");
+		// System.out.println("Connection to server established ...");
 	}
 
 	/**
@@ -179,8 +191,9 @@ public class JioClient extends Thread {
 		// int max_count = 50 * 1000 / delay;
 	        long timeWrite = 0;
                 long timeRead;
+                int localdelay = delay;
 		while ((max--) > 0) {
-			Thread.sleep(delay);
+			Thread.sleep(localdelay);
 			try {
 				// time = System.currentTimeMillis();
 				timeWrite = System.nanoTime();
@@ -188,9 +201,12 @@ public class JioClient extends Thread {
 				response = readResponse();
 				// time = System.currentTimeMillis() - time;
 				timeRead =  System.nanoTime();
-                                System.out.println("WRITE " + (timeWrite - startTime) + " READ " + (timeRead - startTime));
-				//times.add(time);
-				times.add(timeRead - timeWrite);
+                                // System.out.println("WRITE " + (timeWrite - startTime) + " READ " + (timeRead - startTime));
+				timesReadWrite.add(new ReadWrite(timeRead - startTime, timeWrite - startTime));
+                                long d = (timeRead - timeWrite)/1000000;
+                                localdelay = delay - (int) d;
+                                if (localdelay <= 0)
+                                     localdelay = 0;
 			} catch (IOException exp) {
 				System.out.println("[" + getId() + "] Exception:" + exp.getMessage() + " " + max + " after: " + (System.nanoTime()-startTime));
 				exp.printStackTrace(System.out);
@@ -217,6 +233,9 @@ public class JioClient extends Thread {
 		// For each thread print out the maximum, minimum and average response
 		// times
 		// System.out.println(max_time + " \t " + min_time + " \t " + avg_time);
+		for (ReadWrite t : timesReadWrite) {
+                                System.out.println("WRITE " + t.Write + " READ " + t.Read);
+                }
 		for (long t : times) {
 			System.out.println(t);
 		}
@@ -241,16 +260,16 @@ public class JioClient extends Thread {
 	public String readResponse() throws IOException {
 		long contentLength = 0;
 		String line;
-		System.out.println("[" + getId() + "] Starting...");
+		// System.out.println("[" + getId() + "] Starting...");
 		while ((line = this.reader.readLine()) != null) {
-			System.out.println("[" + getId() + "] " + line);
+			// System.out.println("[" + getId() + "] " + line);
                         if (line.trim().equals(""))
                            break; // Done.
                         if (line.equals("HTTP/1.1 200 OK"))
                            continue;
 			String tab[] = line.split(": ");
-                        if (tab.length != 2)
-                           System.out.println("MERDE: " + line);
+                        // if (tab.length != 2)
+                        //    System.out.println("MERDE: " + line);
 			if (tab[0].equalsIgnoreCase("Content-length")) {
 				contentLength = Long.parseLong(tab[1]);
 			}
@@ -260,11 +279,11 @@ public class JioClient extends Thread {
 
 		while (read < contentLength && (line = this.reader.readLine()) != null) {
                         long tot = read+line.length()+1;
-			System.out.println("[" + getId() + "] " + line + " " + tot);
+			// System.out.println("[" + getId() + "] " + line + " " + tot);
 			read += line.length() + 1;
 		}
 
-		System.out.println("[" + getId() + "] DONE!");
+		// System.out.println("[" + getId() + "] DONE!");
 		return "Hello world!";
 	}
 
