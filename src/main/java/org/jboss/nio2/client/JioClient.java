@@ -94,44 +94,14 @@ public class JioClient extends Thread {
 	/**
 	 * Create a new instance of {@code JioClient}
 	 * 
-	 * @param d_max
-	 * @param delay
-	 */
-	public JioClient(int d_max, int delay) {
-		this.max = d_max;
-		this.delay = delay;
-	}
-
-	/**
-	 * Create a new instance of {@code JioClient}
-	 * 
 	 * @param url
 	 * @param d_max
 	 * @param delay
 	 */
 	public JioClient(URL url, int d_max, int delay) {
-		this(d_max, delay);
+		this.max = d_max;
+		this.delay = delay;
 		this.url = url;
-	}
-
-	/**
-	 * Create a new instance of {@code JioClient}
-	 * 
-	 * @param url
-	 * @param delay
-	 */
-	public JioClient(URL url, int delay) {
-		this(delay);
-		this.url = url;
-	}
-
-	/**
-	 * Create a new instance of {@code JioClient}
-	 * 
-	 * @param delay
-	 */
-	public JioClient(int delay) {
-		this(60 * 1000 / delay, delay);
 	}
 
 	/**
@@ -142,9 +112,9 @@ public class JioClient extends Thread {
 		this.connect();
 		connections.incrementAndGet();
 
-		this.requestBytes = ("GET " + this.url.getPath() + " HTTP/1.1\n" + "Host: "
-				+ this.url.getHost() + "\n" + "User-Agent: " + getClass().getName() + "\n"
-				+ "Connection: keep-alive\n" + CRLF).getBytes();
+		this.requestBytes = ("GET " + this.url.getPath() + " HTTP/1.1\r\n" + "Host: "
+				+ this.url.getHost() + "\r\n" + "User-Agent: " + getClass().getName() + "\r\n"
+				+ "Connection: keep-alive\r\n" + CRLF).getBytes();
 	}
 
 	@Override
@@ -207,10 +177,10 @@ public class JioClient extends Thread {
 		String response = null;
 		// int counter = 0, min_count = 10 * 1000 / delay;
 		// int max_count = 50 * 1000 / delay;
-	        long timeWrite;
+	        long timeWrite = 0;
                 long timeRead;
-		while ((this.max--) > 0) {
-			Thread.sleep(this.delay);
+		while ((max--) > 0) {
+			Thread.sleep(delay);
 			try {
 				// time = System.currentTimeMillis();
 				timeWrite = System.nanoTime();
@@ -222,8 +192,8 @@ public class JioClient extends Thread {
 				//times.add(time);
 				times.add(timeRead - timeWrite);
 			} catch (IOException exp) {
-				System.out.println("[" + getId() + "] Exception:" + exp.getMessage());
-				exp.printStackTrace();
+				System.out.println("[" + getId() + "] Exception:" + exp.getMessage() + " " + max + " after: " + (System.nanoTime()-startTime));
+				exp.printStackTrace(System.out);
 				break;
 			}
 
@@ -271,9 +241,16 @@ public class JioClient extends Thread {
 	public String readResponse() throws IOException {
 		long contentLength = 0;
 		String line;
-		while ((line = this.reader.readLine()) != null && !line.trim().equals("")) {
-			// System.out.println(line);
-			String tab[] = line.split("\\s*:\\s*");
+		System.out.println("[" + getId() + "] Starting...");
+		while ((line = this.reader.readLine()) != null) {
+			System.out.println("[" + getId() + "] " + line);
+                        if (line.trim().equals(""))
+                           break; // Done.
+                        if (line.equals("HTTP/1.1 200 OK"))
+                           continue;
+			String tab[] = line.split(": ");
+                        if (tab.length != 2)
+                           System.out.println("MERDE: " + line);
 			if (tab[0].equalsIgnoreCase("Content-length")) {
 				contentLength = Long.parseLong(tab[1]);
 			}
@@ -282,9 +259,12 @@ public class JioClient extends Thread {
 		long read = 0;
 
 		while (read < contentLength && (line = this.reader.readLine()) != null) {
+                        long tot = read+line.length()+1;
+			System.out.println("[" + getId() + "] " + line + " " + tot);
 			read += line.length() + 1;
 		}
 
+		System.out.println("[" + getId() + "] DONE!");
 		return "Hello world!";
 	}
 
