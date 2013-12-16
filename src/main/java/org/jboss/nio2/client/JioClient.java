@@ -77,6 +77,8 @@ public class JioClient extends Thread {
 	 */
 	protected static int NB_CLIENTS = 100;
 
+        public static boolean sticky = false; /* true; */
+
 	//private long max_time = Long.MIN_VALUE;
 	//private long min_time = Long.MAX_VALUE;
 	//private double avg_time = 0;
@@ -86,9 +88,11 @@ public class JioClient extends Thread {
 	protected URL url;
 	private BufferedReader reader;
 	private OutputStream os;
-	private byte[] requestBytes;
+	private byte[] requestBytesFirst;
+	private byte[] requestBytes = null;
 	private List<Long> times = new ArrayList<Long>();
 	private List<ReadWrite> timesReadWrite = new ArrayList<ReadWrite>();
+        private String cookie = null;
 
         static long startTime = System.nanoTime();
 
@@ -124,7 +128,7 @@ public class JioClient extends Thread {
 		this.connect();
 		connections.incrementAndGet();
 
-		this.requestBytes = ("GET " + this.url.getPath() + " HTTP/1.1\r\n" + "Host: "
+		this.requestBytesFirst = ("GET " + this.url.getPath() + " HTTP/1.1\r\n" + "Host: "
 				+ this.url.getHost() + "\r\n" + "User-Agent: " + getClass().getName() + "\r\n"
 				+ "Connection: keep-alive\r\n" + CRLF).getBytes();
 	}
@@ -247,7 +251,10 @@ public class JioClient extends Thread {
 	 * @throws Exception
 	 */
 	private void sendRequest() throws IOException {
-		this.os.write(this.requestBytes);
+                if (this.requestBytes != null)
+		   this.os.write(this.requestBytes);
+                else
+		   this.os.write(this.requestBytesFirst);
 		this.os.flush();
 	}
 
@@ -260,20 +267,44 @@ public class JioClient extends Thread {
 	public String readResponse() throws IOException {
 		long contentLength = 0;
 		String line;
+                boolean hasCook = false;
+                boolean isOK = false;
 		// System.out.println("[" + getId() + "] Starting...");
 		while ((line = this.reader.readLine()) != null) {
-			// System.out.println("[" + getId() + "] " + line);
+			// System.out.println("[" + getId() + "] " + line + "***");
                         if (line.trim().equals(""))
                            break; // Done.
-                        if (line.equals("HTTP/1.1 200 OK"))
+                        if (line.equals("HTTP/1.1 200 OK")) {
+                           isOK = true;
                            continue;
+                        }
 			String tab[] = line.split(": ");
                         // if (tab.length != 2)
                         //    System.out.println("MERDE: " + line);
 			if (tab[0].equalsIgnoreCase("Content-length")) {
 				contentLength = Long.parseLong(tab[1]);
-			}
+			} else if (tab[0].equalsIgnoreCase("Set-Cookie")) {
+                           /* We have received a cookie */
+                           hasCook = true;
+			   // System.out.println("[" + getId() + "] Cookie " + tab[1]);
+                           if (this.cookie == null) {
+                               this.cookie = tab[1];
+		               this.requestBytes = ("GET " + this.url.getPath() + " HTTP/1.1\r\n" + "Host: "
+		               		+ this.url.getHost() + "\r\n" + "User-Agent: " + getClass().getName() + "\r\n"
+			               	+ "Connection: keep-alive\r\n"
+                                        + "Cookie: " + this.cookie + "\r\n" + CRLF).getBytes();
+                           } else {
+                               if (this.sticky && !this.cookie.equals(tab[1])) {
+                                  throw new IOException("Cookie changed from " + this.cookie + " to " + tab[1]);
+                               }
+                           }
+                        }
 		}
+
+                if (!isOK)
+                   throw new IOException("Return code is not 200");
+                if ((this.requestBytes == null ) && this.sticky)
+                   throw new IOException("Sticky required but no cookie");
 
 		long read = 0;
 
