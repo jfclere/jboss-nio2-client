@@ -1,6 +1,6 @@
 i=$1
 (cd /tmp/PROXY/jboss-nio2-client
-nohup bash /tmp/PROXY/jboss-nio2-client/run.sh http://172.16.10.8:8080/jboss-nio2-servlet/ 1500 $i 1000000 7500 &
+nohup bash /tmp/PROXY/jboss-nio2-client/run.sh http://172.16.10.8:8080/jboss-nio2-servlet/ 1500 $i 2000000 6000 &
 )
 # run.sh
 # 1: url
